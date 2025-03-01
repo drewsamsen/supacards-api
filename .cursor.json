@@ -1,0 +1,19 @@
+{
+  "formatOnSave": true,
+  "formatOnPaste": true,
+  "tabSize": 2,
+  "lineNumbers": true,
+  "wordWrap": "on",
+  "theme": "dark",
+  "linting": {
+    "enabled": true
+  },
+  "autoClosingBrackets": true,
+  "autoIndent": true,
+  "snippets": {
+    "enabled": true
+  },
+  "telemetry": {
+    "enabled": false
+  }
+} 
