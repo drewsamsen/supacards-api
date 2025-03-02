@@ -92,7 +92,93 @@ supacards-api/
 
 ## API Documentation
 
-(Add API documentation here or link to external documentation)
+### Endpoints
+
+#### Health Check
+- `GET /health` - Check if the API is running
+
+#### Decks
+
+- `GET /api/decks` - Get all decks
+  - Query parameters:
+    - `includeArchived=true` - Include archived decks (default: false)
+  
+- `GET /api/decks/:id` - Get a specific deck by ID
+  
+- `GET /api/decks/:id/cards` - Get all cards in a specific deck
+  
+- `POST /api/decks` - Create a new deck
+  - Request body:
+    ```json
+    {
+      "name": "Deck Name",
+      "user_id": "optional-user-id"
+    }
+    ```
+  
+- `PATCH /api/decks/:id` - Update a deck
+  - Request body:
+    ```json
+    {
+      "name": "New Deck Name",
+      "archived": false
+    }
+    ```
+  
+- `POST /api/decks/:id/archive` - Archive a deck
+  
+- `DELETE /api/decks/:id` - Delete a deck
+  - Note: If the deck contains cards, it will be archived instead of deleted
+
+#### Cards
+
+- `GET /api/cards` - Get all cards
+  
+- `GET /api/cards/:id` - Get a specific card by ID
+  
+- `POST /api/cards` - Create a new card
+  - Request body:
+    ```json
+    {
+      "front": "Card front content",
+      "back": "Card back content",
+      "deck_id": "required-deck-id",
+      "user_id": "optional-user-id"
+    }
+    ```
+  
+- `PATCH /api/cards/:id` - Update a card
+  - Request body:
+    ```json
+    {
+      "front": "New front content",
+      "back": "New back content",
+      "deck_id": "new-deck-id"
+    }
+    ```
+  
+- `DELETE /api/cards/:id` - Delete a card
+
+### Response Format
+
+Successful responses follow this format:
+
+```json
+{
+  "status": "success",
+  "data": { ... },
+  "results": 1  // Only for list endpoints
+}
+```
+
+Error responses follow this format:
+
+```json
+{
+  "status": "error",
+  "message": "Error message"
+}
+```
 
 ## Testing
 
