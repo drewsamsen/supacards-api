@@ -5,7 +5,7 @@ export interface Card {
   id: string;
   front: string;
   back: string;
-  deck_id?: string;
+  deck_id: string;
   user_id?: string;
   created_at: string;
   updated_at: string;
@@ -15,7 +15,7 @@ export interface Card {
 export interface CreateCardDTO {
   front: string;
   back: string;
-  deck_id?: string;
+  deck_id: string;
   user_id?: string;
 }
 
@@ -30,7 +30,7 @@ export interface UpdateCardDTO {
 export const createCardSchema = z.object({
   front: z.string().min(1, 'Front content is required'),
   back: z.string().min(1, 'Back content is required'),
-  deck_id: z.string().uuid().optional(),
+  deck_id: z.string().uuid('Valid deck ID is required'),
   user_id: z.string().uuid().optional(),
 });
 
@@ -38,7 +38,7 @@ export const createCardSchema = z.object({
 export const updateCardSchema = z.object({
   front: z.string().min(1, 'Front content is required').optional(),
   back: z.string().min(1, 'Back content is required').optional(),
-  deck_id: z.string().uuid().optional(),
+  deck_id: z.string().uuid('Valid deck ID is required').optional(),
 }).refine(data => Object.keys(data).length > 0, {
   message: 'At least one field must be provided for update',
 }); 

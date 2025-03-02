@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { cardRoutes } from './routes/card-routes';
+import { deckRoutes } from './routes/deck-routes';
 import { errorHandler } from './middleware/error-handler';
 
 // Load environment variables
@@ -19,6 +20,7 @@ app.use(express.json()); // Parse JSON bodies
 
 // Routes
 app.use('/api/cards', cardRoutes);
+app.use('/api/decks', deckRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

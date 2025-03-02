@@ -64,6 +64,25 @@ export const createCard = async (req: Request, res: Response, next: NextFunction
 
     const newCard: CreateCardDTO = validationResult.data;
 
+    // Check if the deck exists and is not archived
+    const { data: deckData, error: deckError } = await supabase
+      .from(TABLES.DECKS)
+      .select('id, archived')
+      .eq('id', newCard.deck_id)
+      .single();
+
+    if (deckError) {
+      if (deckError.code === 'PGRST116') {
+        throw new ApiError(404, `Deck with ID ${newCard.deck_id} not found`);
+      }
+      throw new ApiError(500, `Error checking deck: ${deckError.message}`);
+    }
+
+    // Check if the deck is archived
+    if (deckData.archived) {
+      throw new ApiError(400, `Cannot add card to archived deck with ID ${newCard.deck_id}`);
+    }
+
     // Insert card into database
     const { data, error } = await supabase
       .from(TABLES.CARDS)
@@ -96,6 +115,27 @@ export const updateCard = async (req: Request, res: Response, next: NextFunction
     }
 
     const updateData: UpdateCardDTO = validationResult.data;
+
+    // If deck_id is being updated, check if the new deck exists and is not archived
+    if (updateData.deck_id) {
+      const { data: deckData, error: deckError } = await supabase
+        .from(TABLES.DECKS)
+        .select('id, archived')
+        .eq('id', updateData.deck_id)
+        .single();
+
+      if (deckError) {
+        if (deckError.code === 'PGRST116') {
+          throw new ApiError(404, `Deck with ID ${updateData.deck_id} not found`);
+        }
+        throw new ApiError(500, `Error checking deck: ${deckError.message}`);
+      }
+
+      // Check if the deck is archived
+      if (deckData.archived) {
+        throw new ApiError(400, `Cannot move card to archived deck with ID ${updateData.deck_id}`);
+      }
+    }
 
     // Update card in database
     const { data, error } = await supabase
