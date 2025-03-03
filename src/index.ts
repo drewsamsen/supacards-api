@@ -24,9 +24,14 @@ app.use('/api/cards', cardRoutes);
 app.use('/api/decks', deckRoutes);
 app.use('/api/auth', authRoutes);
 
-// Health check endpoint
+// Health check endpoints
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
+
+// Root path health check (for easier testing)
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Supacards API is running' });
 });
 
 // Error handling middleware
