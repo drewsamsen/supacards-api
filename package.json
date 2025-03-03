@@ -2,12 +2,12 @@
   "name": "supacards-api",
   "version": "1.0.0",
   "description": "Supacards API with Express.js and Supabase",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
-    "vercel-build": "node vercel-build.js",
+    "vercel-build": "tsc",
     "lint": "eslint . --ext .ts",
     "test": "jest"
   },

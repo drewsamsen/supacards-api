@@ -37,9 +37,12 @@ app.get('/', (req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
+}
 
+// Export for Vercel
 export default app; 
