@@ -22,6 +22,10 @@ export class DatabaseService {
     includeArchived?: boolean 
   } = {}) {
     try {
+      // TEMPORARY LOGGING: Log user ID and table being queried
+      console.log(`DB SERVICE - getAll - User ID: ${this.userId}, Table: ${this.table}`);
+      console.log(`DB SERVICE - getAll - Options:`, JSON.stringify(options));
+      
       let query = this.client
         .from(this.table)
         .select(options.select || '*')
@@ -39,11 +43,30 @@ export class DatabaseService {
         });
       }
 
+      // TEMPORARY LOGGING: Log the query details
+      console.log(`DB SERVICE - getAll - Query filters:`, {
+        table: this.table,
+        userId: this.userId,
+        includeArchived: options.includeArchived,
+        additionalFilters: options.filters
+      });
+
       const { data, error } = await query;
+
+      // TEMPORARY LOGGING: Log the result
+      console.log(`DB SERVICE - getAll - Result count: ${data?.length || 0}`);
+      if (data && data.length > 0) {
+        console.log(`DB SERVICE - getAll - First result:`, JSON.stringify(data[0]));
+      } else {
+        console.log(`DB SERVICE - getAll - No results found`);
+      }
 
       if (error) throw error;
       return data;
     } catch (error: unknown) {
+      // TEMPORARY LOGGING: Log any errors
+      console.error(`DB SERVICE - getAll - Error:`, error);
+      
       if (error instanceof Error) {
         throw new ApiError(500, `Error fetching ${this.table}: ${error.message}`);
       }
@@ -85,19 +108,35 @@ export class DatabaseService {
    */
   async create<T extends Record<string, any>>(data: T) {
     try {
+      // TEMPORARY LOGGING: Log creation details
+      console.log(`DB SERVICE - create - User ID: ${this.userId}, Table: ${this.table}`);
+      
       const recordWithUser = {
         ...data,
         user_id: this.userId
       };
+      
+      // TEMPORARY LOGGING: Log the data being inserted
+      console.log(`DB SERVICE - create - Data:`, JSON.stringify(recordWithUser));
 
       const { data: created, error } = await this.client
         .from(this.table)
         .insert([recordWithUser])
         .select();
 
+      // TEMPORARY LOGGING: Log the result
+      if (created && created.length > 0) {
+        console.log(`DB SERVICE - create - Created record:`, JSON.stringify(created[0]));
+      } else {
+        console.log(`DB SERVICE - create - No record created`);
+      }
+
       if (error) throw error;
       return created[0];
     } catch (error: unknown) {
+      // TEMPORARY LOGGING: Log any errors
+      console.error(`DB SERVICE - create - Error:`, error);
+      
       if (error instanceof Error) {
         throw new ApiError(500, `Error creating ${this.table}: ${error.message}`);
       }

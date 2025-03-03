@@ -27,10 +27,17 @@ export class BaseController {
    */
   getAll = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
+      // TEMPORARY LOGGING: Log request details
+      console.log(`CONTROLLER - getAll - User ID: ${req.user?.id}, Table: ${this.table}`);
+      console.log(`CONTROLLER - getAll - Query params:`, req.query);
+      
       const service = this.getService(req);
       const includeArchived = req.query.includeArchived === 'true';
       
       const data = await service.getAll({ includeArchived });
+      
+      // TEMPORARY LOGGING: Log response
+      console.log(`CONTROLLER - getAll - Response data count: ${data.length}`);
       
       return res.status(200).json({
         status: 'success',
@@ -66,6 +73,10 @@ export class BaseController {
    */
   create = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
+      // TEMPORARY LOGGING: Log request details
+      console.log(`CONTROLLER - create - User ID: ${req.user?.id}, Table: ${this.table}`);
+      console.log(`CONTROLLER - create - Request body:`, JSON.stringify(req.body));
+      
       const service = this.getService(req);
       
       if (this.createSchema) {
@@ -77,6 +88,9 @@ export class BaseController {
       }
       
       const data = await service.create(req.body);
+      
+      // TEMPORARY LOGGING: Log created data
+      console.log(`CONTROLLER - create - Created data:`, JSON.stringify(data));
       
       return res.status(201).json({
         status: 'success',
