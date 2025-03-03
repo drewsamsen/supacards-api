@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../config/supabase';
+import { supabase } from '../utils/supabase-client';
 import { ApiError } from '../utils/error-utils';
 import { z } from 'zod';
 import { AuthenticatedRequest } from '../types/auth-types';
