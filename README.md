@@ -92,10 +92,24 @@ supacards-api/
 
 ## API Documentation
 
-### Endpoints
+For comprehensive API documentation, please refer to the [docs folder](./docs/README.md) which contains detailed information about:
+
+- [Getting Started](./docs/getting-started.md)
+- [Authentication](./docs/authentication.md)
+- [Decks](./docs/decks.md)
+- [Cards](./docs/cards.md)
+- [Advanced Topics](./docs/advanced.md) (pagination, filtering, sorting)
+
+### Quick Reference
 
 #### Health Check
 - `GET /health` - Check if the API is running
+
+#### Authentication
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - Login and get JWT token
+- `POST /api/auth/logout` - Logout (invalidate token)
+- `GET /api/auth/me` - Get current user profile
 
 #### Decks
 
