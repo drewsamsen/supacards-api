@@ -196,4 +196,56 @@ ISC
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request. 
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Deployment to Vercel
+
+This API can be deployed to Vercel by following these steps:
+
+### Prerequisites
+
+1. A [Vercel](https://vercel.com) account
+2. The [Vercel CLI](https://vercel.com/docs/cli) installed (optional, for local testing)
+3. A Supabase project set up with the database schema (see `sql/DATABASE_SETUP.md`)
+
+### Deployment Steps
+
+1. **Fork or clone this repository to your GitHub account**
+
+2. **Connect to Vercel**
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Click "Add New" → "Project"
+   - Import your GitHub repository
+   - Configure the project:
+     - Framework Preset: Other
+     - Build Command: `npm run vercel-build`
+     - Output Directory: `dist`
+     - Install Command: `npm ci`
+
+3. **Set Environment Variables**
+   - In the Vercel project settings, add the following environment variables:
+     - `SUPABASE_URL`: Your Supabase project URL
+     - `SUPABASE_KEY`: Your Supabase service role key (or anon key with appropriate permissions)
+     - `JWT_SECRET`: A secure random string for JWT token signing
+     - `NODE_ENV`: Set to `production`
+     - `PORT`: Set to `3000` (Vercel will override this, but it's good to have it set)
+
+4. **Deploy**
+   - Click "Deploy" and wait for the build to complete
+   - Vercel will provide you with a deployment URL (e.g., `https://supacards-api.vercel.app`)
+
+### Verifying the Deployment
+
+After deployment, you can verify that your API is working by:
+
+1. Accessing the health check endpoint: `https://your-deployment-url/health`
+2. Testing the API endpoints using the documentation in `API_DOCUMENTATION.md`
+
+### Troubleshooting
+
+If you encounter issues with your Vercel deployment:
+
+1. Check the Vercel deployment logs for error messages
+2. Verify that all environment variables are set correctly
+3. Ensure your Supabase project is accessible from Vercel's servers
+4. Check that the database schema is set up correctly in Supabase 
