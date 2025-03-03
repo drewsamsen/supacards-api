@@ -30,11 +30,6 @@ export const verifyToken = async (req: AuthenticatedRequest, res: Response, next
       throw new ApiError(401, 'Invalid or expired token');
     }
     
-    // TEMPORARY LOGGING: Log user ID from token
-    console.log('AUTH MIDDLEWARE - User ID from token:', data.user.id);
-    console.log('AUTH MIDDLEWARE - Email:', data.user.email);
-    console.log('AUTH MIDDLEWARE - Auth provider:', data.user.app_metadata?.provider);
-    
     // Attach the user and token to the request object
     req.user = data.user;
     req.token = token;
