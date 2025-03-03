@@ -13,8 +13,14 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase credentials. Please check your .env file.');
 }
 
-// Create Supabase client
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Create Supabase client with auth configuration
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
 
 // Export table names for consistency
 export const TABLES = {

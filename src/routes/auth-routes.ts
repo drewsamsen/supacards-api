@@ -1,14 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { User } from '@supabase/supabase-js';
 import { verifyToken } from '../middleware/auth-middleware';
 import { getCurrentUser } from '../utils/auth-utils';
 import { register, login, logout } from '../controllers/auth-controller';
-
-// Extend the Express Request interface
-interface AuthenticatedRequest extends Request {
-  user?: User;
-  token?: string;
-}
+import { AuthenticatedRequest } from '../types/auth-types';
 
 const router = Router();
 

@@ -1,13 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
-import { User } from '@supabase/supabase-js';
+import { Response, NextFunction } from 'express';
 import { supabase } from '../config/supabase';
 import { ApiError } from '../middleware/error-handler';
-
-// Extend the Express Request interface
-interface AuthenticatedRequest extends Request {
-  user?: User;
-  token?: string;
-}
+import { AuthenticatedRequest } from '../types/auth-types';
 
 /**
  * Middleware to verify JWT token in Authorization header

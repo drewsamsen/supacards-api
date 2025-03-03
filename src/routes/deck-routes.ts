@@ -8,8 +8,12 @@ import {
   archiveDeck,
   deleteDeck
 } from '../controllers/deck-controller';
+import { verifyToken } from '../middleware/auth-middleware';
 
 const router = Router();
+
+// All deck routes require authentication
+router.use(verifyToken);
 
 // GET all decks
 router.get('/', getAllDecks);

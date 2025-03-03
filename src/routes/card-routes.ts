@@ -6,22 +6,18 @@ import {
   updateCard,
   deleteCard
 } from '../controllers/card-controller';
+import { verifyToken } from '../middleware/auth-middleware';
 
 const router = Router();
 
-// GET all cards
+// Apply authentication middleware to all card routes
+router.use(verifyToken);
+
+// Routes
 router.get('/', getAllCards);
-
-// GET a single card
 router.get('/:id', getCardById);
-
-// POST a new card
 router.post('/', createCard);
-
-// PATCH (update) a card
 router.patch('/:id', updateCard);
-
-// DELETE a card
 router.delete('/:id', deleteCard);
 
 export const cardRoutes = router; 

@@ -2,17 +2,27 @@ import { Request, Response, NextFunction } from 'express';
 import { supabase, TABLES } from '../config/supabase';
 import { ApiError } from '../middleware/error-handler';
 import { CreateDeckDTO, UpdateDeckDTO, createDeckSchema, updateDeckSchema } from '../models/deck';
+import { AuthenticatedRequest } from '../types/auth-types';
+import { verifyToken } from '../middleware/auth-middleware';
 
-// Get all decks
-export const getAllDecks = async (req: Request, res: Response, next: NextFunction) => {
+// Get all decks for the authenticated user
+export const getAllDecks = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     // Get query parameter for including archived decks
     const includeArchived = req.query.includeArchived === 'true';
     
+    // Get user ID from the authenticated request
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      throw new ApiError(401, 'User ID not found in request');
+    }
+    
     // Build query
     let query = supabase
       .from(TABLES.DECKS)
-      .select('*');
+      .select('*')
+      .eq('user_id', userId); // Filter by user ID
     
     // Filter out archived decks by default
     if (!includeArchived) {
@@ -35,20 +45,26 @@ export const getAllDecks = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-// Get a single deck by ID
-export const getDeckById = async (req: Request, res: Response, next: NextFunction) => {
+// Get a single deck by ID for the authenticated user
+export const getDeckById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      throw new ApiError(401, 'User ID not found in request');
+    }
 
     const { data, error } = await supabase
       .from(TABLES.DECKS)
       .select('*')
       .eq('id', id)
+      .eq('user_id', userId) // Ensure the deck belongs to the user
       .single();
 
     if (error) {
       if (error.code === 'PGRST116') {
-        throw new ApiError(404, `Deck with ID ${id} not found`);
+        throw new ApiError(404, `Deck with ID ${id} not found or you don't have access to it`);
       }
       throw new ApiError(500, `Error fetching deck: ${error.message}`);
     }
@@ -62,21 +78,27 @@ export const getDeckById = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-// Get all cards in a deck
-export const getCardsByDeckId = async (req: Request, res: Response, next: NextFunction) => {
+// Get all cards in a deck for the authenticated user
+export const getCardsByDeckId = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      throw new ApiError(401, 'User ID not found in request');
+    }
 
-    // First check if the deck exists
+    // First check if the deck exists and belongs to the user
     const { data: deck, error: deckError } = await supabase
       .from(TABLES.DECKS)
       .select('id, archived')
       .eq('id', id)
+      .eq('user_id', userId) // Ensure the deck belongs to the user
       .single();
 
     if (deckError) {
       if (deckError.code === 'PGRST116') {
-        throw new ApiError(404, `Deck with ID ${id} not found`);
+        throw new ApiError(404, `Deck with ID ${id} not found or you don't have access to it`);
       }
       throw new ApiError(500, `Error fetching deck: ${deckError.message}`);
     }
@@ -106,9 +128,16 @@ export const getCardsByDeckId = async (req: Request, res: Response, next: NextFu
   }
 };
 
-// Create a new deck
-export const createDeck = async (req: Request, res: Response, next: NextFunction) => {
+// Create a new deck for the authenticated user
+export const createDeck = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
+    // Get user ID from the authenticated request
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      throw new ApiError(401, 'User ID not found in request');
+    }
+    
     // Validate request body
     const validationResult = createDeckSchema.safeParse(req.body);
     
@@ -116,7 +145,10 @@ export const createDeck = async (req: Request, res: Response, next: NextFunction
       throw new ApiError(400, `Validation error: ${validationResult.error.message}`);
     }
 
-    const newDeck: CreateDeckDTO = validationResult.data;
+    const newDeck: CreateDeckDTO = {
+      ...validationResult.data,
+      user_id: userId // Set the user ID from the authenticated request
+    };
 
     // Insert deck into database
     const { data, error } = await supabase
@@ -137,10 +169,15 @@ export const createDeck = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-// Update a deck
-export const updateDeck = async (req: Request, res: Response, next: NextFunction) => {
+// Update a deck for the authenticated user
+export const updateDeck = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      throw new ApiError(401, 'User ID not found in request');
+    }
 
     // Validate request body
     const validationResult = updateDeckSchema.safeParse(req.body);
@@ -151,11 +188,12 @@ export const updateDeck = async (req: Request, res: Response, next: NextFunction
 
     const updateData: UpdateDeckDTO = validationResult.data;
 
-    // Update deck in database
+    // Update deck in database, ensuring it belongs to the user
     const { data, error } = await supabase
       .from(TABLES.DECKS)
       .update(updateData)
       .eq('id', id)
+      .eq('user_id', userId) // Ensure the deck belongs to the user
       .select();
 
     if (error) {
@@ -163,7 +201,7 @@ export const updateDeck = async (req: Request, res: Response, next: NextFunction
     }
 
     if (data.length === 0) {
-      throw new ApiError(404, `Deck with ID ${id} not found`);
+      throw new ApiError(404, `Deck with ID ${id} not found or you don't have access to it`);
     }
 
     return res.status(200).json({
@@ -175,16 +213,22 @@ export const updateDeck = async (req: Request, res: Response, next: NextFunction
   }
 };
 
-// Archive a deck
-export const archiveDeck = async (req: Request, res: Response, next: NextFunction) => {
+// Archive a deck for the authenticated user
+export const archiveDeck = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      throw new ApiError(401, 'User ID not found in request');
+    }
 
-    // Update deck to be archived
+    // Update deck to be archived, ensuring it belongs to the user
     const { data, error } = await supabase
       .from(TABLES.DECKS)
       .update({ archived: true })
       .eq('id', id)
+      .eq('user_id', userId) // Ensure the deck belongs to the user
       .select();
 
     if (error) {
@@ -192,7 +236,7 @@ export const archiveDeck = async (req: Request, res: Response, next: NextFunctio
     }
 
     if (data.length === 0) {
-      throw new ApiError(404, `Deck with ID ${id} not found`);
+      throw new ApiError(404, `Deck with ID ${id} not found or you don't have access to it`);
     }
 
     return res.status(200).json({
@@ -205,10 +249,30 @@ export const archiveDeck = async (req: Request, res: Response, next: NextFunctio
   }
 };
 
-// Delete a deck
-export const deleteDeck = async (req: Request, res: Response, next: NextFunction) => {
+// Delete a deck for the authenticated user
+export const deleteDeck = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
+    
+    if (!userId) {
+      throw new ApiError(401, 'User ID not found in request');
+    }
+
+    // First check if the deck belongs to the user
+    const { data: deckCheck, error: deckCheckError } = await supabase
+      .from(TABLES.DECKS)
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', userId) // Ensure the deck belongs to the user
+      .single();
+
+    if (deckCheckError) {
+      if (deckCheckError.code === 'PGRST116') {
+        throw new ApiError(404, `Deck with ID ${id} not found or you don't have access to it`);
+      }
+      throw new ApiError(500, `Error checking deck ownership: ${deckCheckError.message}`);
+    }
 
     // Check if there are any cards in this deck
     const { data: cards, error: cardsError } = await supabase
@@ -228,14 +292,11 @@ export const deleteDeck = async (req: Request, res: Response, next: NextFunction
         .from(TABLES.DECKS)
         .update({ archived: true })
         .eq('id', id)
+        .eq('user_id', userId) // Ensure the deck belongs to the user
         .select();
 
       if (error) {
         throw new ApiError(500, `Error archiving deck: ${error.message}`);
-      }
-
-      if (data.length === 0) {
-        throw new ApiError(404, `Deck with ID ${id} not found`);
       }
 
       return res.status(200).json({
@@ -249,13 +310,17 @@ export const deleteDeck = async (req: Request, res: Response, next: NextFunction
     const { error } = await supabase
       .from(TABLES.DECKS)
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('user_id', userId); // Ensure the deck belongs to the user
 
     if (error) {
       throw new ApiError(500, `Error deleting deck: ${error.message}`);
     }
 
-    return res.status(204).send();
+    return res.status(200).json({
+      status: 'success',
+      message: 'Deck deleted successfully'
+    });
   } catch (error) {
     next(error);
   }

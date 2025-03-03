@@ -3,12 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '../config/supabase';
 import { ApiError } from '../utils/error-utils';
 import { z } from 'zod';
-
-// Extend the Express Request interface
-interface AuthenticatedRequest extends Request {
-  user?: User;
-  token?: string;
-}
+import { AuthenticatedRequest } from '../types/auth-types';
 
 // Validation schema for registration
 const registerSchema = z.object({
