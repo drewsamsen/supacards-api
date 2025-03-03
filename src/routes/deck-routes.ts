@@ -1,39 +1,31 @@
 import { Router } from 'express';
-import {
-  getAllDecks,
-  getDeckById,
-  getCardsByDeckId,
-  createDeck,
-  updateDeck,
-  archiveDeck,
-  deleteDeck
-} from '../controllers/deck-controller';
 import { verifyToken } from '../middleware/auth-middleware';
+import { deckController } from '../controllers/deck-controller';
 
 const router = Router();
 
-// All deck routes require authentication
+// Apply authentication middleware to all routes
 router.use(verifyToken);
 
-// GET all decks
-router.get('/', getAllDecks);
+// Get all decks
+router.get('/', deckController.getAll);
 
-// GET a single deck
-router.get('/:id', getDeckById);
+// Get a specific deck by ID
+router.get('/id/:id', deckController.getById);
 
-// GET all cards in a deck
-router.get('/:id/cards', getCardsByDeckId);
+// Get all cards in a deck
+router.get('/id/:id/cards', deckController.getCards);
 
-// POST a new deck
-router.post('/', createDeck);
+// Create a new deck
+router.post('/', deckController.create);
 
-// PATCH (update) a deck
-router.patch('/:id', updateDeck);
+// Update a deck
+router.patch('/id/:id', deckController.update);
 
-// POST to archive a deck
-router.post('/:id/archive', archiveDeck);
+// Archive a deck
+router.patch('/id/:id/archive', deckController.archive);
 
-// DELETE a deck
-router.delete('/:id', deleteDeck);
+// Delete a deck
+router.delete('/id/:id', deckController.delete);
 
 export const deckRoutes = router; 

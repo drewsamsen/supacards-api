@@ -1,268 +1,158 @@
-import { Request, Response, NextFunction } from 'express';
-import { supabase, TABLES } from '../config/supabase';
+import { Response, NextFunction } from 'express';
 import { ApiError } from '../middleware/error-handler';
-import { CreateCardDTO, UpdateCardDTO, createCardSchema, updateCardSchema } from '../models/card';
+import { createCardSchema, updateCardSchema } from '../models/card';
 import { AuthenticatedRequest } from '../types/auth-types';
+import { TABLES } from '../utils/supabase-client';
+import { BaseController } from './base.controller';
+import { DatabaseService } from '../services/database.service';
 
-// Get all cards for the authenticated user
-export const getAllCards = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?.id;
-    
-    if (!userId) {
-      throw new ApiError(401, 'User ID not found in request');
+interface DeckWithArchived {
+  id: string;
+  archived: boolean;
+}
+
+function isDeckWithArchived(obj: any): obj is DeckWithArchived {
+  return obj && typeof obj === 'object' && 'id' in obj && 'archived' in obj;
+}
+
+export class CardController extends BaseController {
+  constructor() {
+    super(TABLES.CARDS, createCardSchema, updateCardSchema);
+  }
+
+  /**
+   * Override create to check deck ownership and status
+   */
+  create = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const service = this.getService(req);
+      const deckService = new DatabaseService(req.token, req.user!.id, TABLES.DECKS);
+      
+      // Validate request body
+      if (this.createSchema) {
+        const validationResult = this.createSchema.safeParse(req.body);
+        if (!validationResult.success) {
+          throw new ApiError(400, `Validation error: ${validationResult.error.message}`);
+        }
+        req.body = validationResult.data;
+      }
+
+      // Check if the deck exists, is not archived, and belongs to the user
+      const deck = await deckService.getById(req.body.deck_id, 'id, archived');
+      
+      if (!isDeckWithArchived(deck)) {
+        throw new ApiError(500, 'Invalid deck data returned from database');
+      }
+      
+      if (deck.archived) {
+        throw new ApiError(400, `Cannot add card to archived deck with ID ${req.body.deck_id}`);
+      }
+      
+      const data = await service.create(req.body);
+      
+      return res.status(201).json({
+        status: 'success',
+        data
+      });
+    } catch (error) {
+      next(error);
     }
-    
-    // Join with decks to filter by user_id
-    const { data, error } = await supabase
-      .from(TABLES.CARDS)
-      .select(`
-        *,
-        ${TABLES.DECKS}!inner (id, user_id)
-      `)
-      .eq(`${TABLES.DECKS}.user_id`, userId);
+  };
 
-    if (error) {
-      throw new ApiError(500, `Error fetching cards: ${error.message}`);
+  /**
+   * Override update to check deck ownership and status when moving cards
+   */
+  update = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const service = this.getService(req);
+      const { id } = req.params;
+      
+      // Validate request body
+      if (this.updateSchema) {
+        const validationResult = this.updateSchema.safeParse(req.body);
+        if (!validationResult.success) {
+          throw new ApiError(400, `Validation error: ${validationResult.error.message}`);
+        }
+        req.body = validationResult.data;
+      }
+
+      // If deck_id is being updated, check the new deck
+      if (req.body.deck_id) {
+        const deckService = new DatabaseService(req.token, req.user!.id, TABLES.DECKS);
+        const deck = await deckService.getById(req.body.deck_id, 'id, archived');
+        
+        if (!isDeckWithArchived(deck)) {
+          throw new ApiError(500, 'Invalid deck data returned from database');
+        }
+        
+        if (deck.archived) {
+          throw new ApiError(400, `Cannot move card to archived deck with ID ${req.body.deck_id}`);
+        }
+      }
+      
+      const data = await service.update(id, req.body);
+      
+      return res.status(200).json({
+        status: 'success',
+        data
+      });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    return res.status(200).json({
-      status: 'success',
-      results: data.length,
-      data: data.map(card => {
-        // Filter out the deck data
+  /**
+   * Override getAll to join with decks for user ownership
+   */
+  getAll = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const service = this.getService(req);
+      const data = await service.getAll({
+        select: `*, ${TABLES.DECKS}!inner (id, user_id)`
+      });
+      
+      // Filter out the deck data from the response
+      const cleanData = data.map(card => {
         const cardData = Object.fromEntries(
           Object.entries(card as Record<string, any>).filter(([key]) => key !== TABLES.DECKS)
         );
         return cardData;
-      })
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      });
 
-// Get a single card by ID for the authenticated user
-export const getCardById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.id;
-    
-    if (!userId) {
-      throw new ApiError(401, 'User ID not found in request');
+      return res.status(200).json({
+        status: 'success',
+        results: cleanData.length,
+        data: cleanData
+      });
+    } catch (error) {
+      next(error);
     }
+  };
 
-    // Join with decks to check user ownership
-    const { data, error } = await supabase
-      .from(TABLES.CARDS)
-      .select(`
-        *,
-        ${TABLES.DECKS}!inner (id, user_id)
-      `)
-      .eq('id', id)
-      .eq(`${TABLES.DECKS}.user_id`, userId)
-      .single();
+  /**
+   * Override getById to join with decks for user ownership
+   */
+  getById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const service = this.getService(req);
+      const { id } = req.params;
+      
+      const data = await service.getById(id, `*, ${TABLES.DECKS}!inner (id, user_id)`);
+      
+      // Filter out the deck data from the response
+      const cardData = Object.fromEntries(
+        Object.entries(data as Record<string, any>).filter(([key]) => key !== TABLES.DECKS)
+      );
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        throw new ApiError(404, `Card with ID ${id} not found or you don't have access to it`);
-      }
-      throw new ApiError(500, `Error fetching card: ${error.message}`);
+      return res.status(200).json({
+        status: 'success',
+        data: cardData
+      });
+    } catch (error) {
+      next(error);
     }
+  };
+}
 
-    // Filter out the deck data
-    const cardData = Object.fromEntries(
-      Object.entries(data as Record<string, any>).filter(([key]) => key !== TABLES.DECKS)
-    );
-
-    return res.status(200).json({
-      status: 'success',
-      data: cardData
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Create a new card for the authenticated user
-export const createCard = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?.id;
-    
-    if (!userId) {
-      throw new ApiError(401, 'User ID not found in request');
-    }
-    
-    // Validate request body
-    const validationResult = createCardSchema.safeParse(req.body);
-    
-    if (!validationResult.success) {
-      throw new ApiError(400, `Validation error: ${validationResult.error.message}`);
-    }
-
-    const newCard: CreateCardDTO = validationResult.data;
-
-    // Check if the deck exists, is not archived, and belongs to the user
-    const { data: deckData, error: deckError } = await supabase
-      .from(TABLES.DECKS)
-      .select('id, archived, user_id')
-      .eq('id', newCard.deck_id)
-      .eq('user_id', userId) // Ensure the deck belongs to the user
-      .single();
-
-    if (deckError) {
-      if (deckError.code === 'PGRST116') {
-        throw new ApiError(404, `Deck with ID ${newCard.deck_id} not found or you don't have access to it`);
-      }
-      throw new ApiError(500, `Error checking deck: ${deckError.message}`);
-    }
-
-    // Check if the deck is archived
-    if (deckData.archived) {
-      throw new ApiError(400, `Cannot add card to archived deck with ID ${newCard.deck_id}`);
-    }
-
-    // Insert card into database
-    const { data, error } = await supabase
-      .from(TABLES.CARDS)
-      .insert([newCard])
-      .select();
-
-    if (error) {
-      throw new ApiError(500, `Error creating card: ${error.message}`);
-    }
-
-    return res.status(201).json({
-      status: 'success',
-      data: data[0]
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Update a card for the authenticated user
-export const updateCard = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.id;
-    
-    if (!userId) {
-      throw new ApiError(401, 'User ID not found in request');
-    }
-
-    // First check if the card exists and belongs to a deck owned by the user
-    const { data: cardData, error: cardError } = await supabase
-      .from(TABLES.CARDS)
-      .select(`
-        *,
-        ${TABLES.DECKS}!inner (id, user_id)
-      `)
-      .eq('id', id)
-      .eq(`${TABLES.DECKS}.user_id`, userId)
-      .single();
-
-    if (cardError) {
-      if (cardError.code === 'PGRST116') {
-        throw new ApiError(404, `Card with ID ${id} not found or you don't have access to it`);
-      }
-      throw new ApiError(500, `Error checking card: ${cardError.message}`);
-    }
-
-    // Validate request body
-    const validationResult = updateCardSchema.safeParse(req.body);
-    
-    if (!validationResult.success) {
-      throw new ApiError(400, `Validation error: ${validationResult.error.message}`);
-    }
-
-    const updateData: UpdateCardDTO = validationResult.data;
-
-    // If deck_id is being updated, check if the new deck exists, is not archived, and belongs to the user
-    if (updateData.deck_id) {
-      const { data: deckData, error: deckError } = await supabase
-        .from(TABLES.DECKS)
-        .select('id, archived, user_id')
-        .eq('id', updateData.deck_id)
-        .eq('user_id', userId) // Ensure the deck belongs to the user
-        .single();
-
-      if (deckError) {
-        if (deckError.code === 'PGRST116') {
-          throw new ApiError(404, `Deck with ID ${updateData.deck_id} not found or you don't have access to it`);
-        }
-        throw new ApiError(500, `Error checking deck: ${deckError.message}`);
-      }
-
-      // Check if the deck is archived
-      if (deckData.archived) {
-        throw new ApiError(400, `Cannot move card to archived deck with ID ${updateData.deck_id}`);
-      }
-    }
-
-    // Update card in database
-    const { data, error } = await supabase
-      .from(TABLES.CARDS)
-      .update(updateData)
-      .eq('id', id)
-      .select();
-
-    if (error) {
-      throw new ApiError(500, `Error updating card: ${error.message}`);
-    }
-
-    return res.status(200).json({
-      status: 'success',
-      data: data[0]
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Delete a card for the authenticated user
-export const deleteCard = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  try {
-    const { id } = req.params;
-    const userId = req.user?.id;
-    
-    if (!userId) {
-      throw new ApiError(401, 'User ID not found in request');
-    }
-
-    // First check if the card exists and belongs to a deck owned by the user
-    const { data: cardData, error: cardError } = await supabase
-      .from(TABLES.CARDS)
-      .select(`
-        id,
-        ${TABLES.DECKS}!inner (id, user_id)
-      `)
-      .eq('id', id)
-      .eq(`${TABLES.DECKS}.user_id`, userId)
-      .single();
-
-    if (cardError) {
-      if (cardError.code === 'PGRST116') {
-        throw new ApiError(404, `Card with ID ${id} not found or you don't have access to it`);
-      }
-      throw new ApiError(500, `Error checking card: ${cardError.message}`);
-    }
-
-    // Delete card from database
-    const { error } = await supabase
-      .from(TABLES.CARDS)
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      throw new ApiError(500, `Error deleting card: ${error.message}`);
-    }
-
-    return res.status(200).json({
-      status: 'success',
-      message: 'Card deleted successfully'
-    });
-  } catch (error) {
-    next(error);
-  }
-}; 
+// Export controller instance
+export const cardController = new CardController(); 

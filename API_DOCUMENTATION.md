@@ -311,7 +311,7 @@ Returns a specific deck by its slug. The deck must belong to the authenticated u
 GET /api/decks/id/:id/cards
 ```
 
-Returns all cards that belong to a specific deck. The deck must belong to the authenticated user.
+Returns all cards in a specific deck. The deck must belong to the authenticated user.
 
 **Headers:**
 
@@ -450,7 +450,7 @@ Creates a new deck for the authenticated user.
 PATCH /api/decks/id/:id
 ```
 
-Updates an existing deck. The deck must belong to the authenticated user.
+Updates a specific deck. The deck must belong to the authenticated user.
 
 **Headers:**
 
@@ -500,10 +500,10 @@ Updates an existing deck. The deck must belong to the authenticated user.
 #### Archive a Deck
 
 ```
-POST /api/decks/id/:id/archive
+PATCH /api/decks/id/:id/archive
 ```
 
-Archives a deck. This is a convenience endpoint that sets the `archived` flag to `true`. The deck must belong to the authenticated user.
+Archives a specific deck. The deck must belong to the authenticated user. If the deck has cards, it will be archived instead of deleted.
 
 **Headers:**
 
@@ -540,7 +540,7 @@ Archives a deck. This is a convenience endpoint that sets the `archived` flag to
 DELETE /api/decks/id/:id
 ```
 
-Deletes a deck. If the deck contains cards, it will be archived instead of deleted. The deck must belong to the authenticated user.
+Deletes a specific deck. The deck must belong to the authenticated user. If the deck has cards, it will be archived instead of deleted.
 
 **Headers:**
 
@@ -596,31 +596,23 @@ Returns a list of all cards belonging to the authenticated user's decks.
 ```json
 {
   "status": "success",
-  "results": 3,
+  "results": 2,
   "data": [
     {
-      "id": "323e4567-e89b-12d3-a456-426614174002",
-      "front": "Hola",
-      "back": "Hello",
-      "deck_id": "123e4567-e89b-12d3-a456-426614174000",
-      "created_at": "2023-03-01T12:05:00Z",
-      "updated_at": "2023-03-01T12:05:00Z"
-    },
-    {
-      "id": "423e4567-e89b-12d3-a456-426614174003",
-      "front": "Adiós",
-      "back": "Goodbye",
-      "deck_id": "123e4567-e89b-12d3-a456-426614174000",
-      "created_at": "2023-03-01T12:10:00Z",
-      "updated_at": "2023-03-01T12:10:00Z"
-    },
-    {
-      "id": "623e4567-e89b-12d3-a456-426614174005",
-      "front": "Callback function",
-      "back": "A function passed as an argument to another function",
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "front": "¿Cómo estás?",
+      "back": "How are you?",
       "deck_id": "223e4567-e89b-12d3-a456-426614174001",
-      "created_at": "2023-03-02T14:35:00Z",
-      "updated_at": "2023-03-02T14:35:00Z"
+      "created_at": "2023-03-01T12:00:00Z",
+      "updated_at": "2023-03-01T12:00:00Z"
+    },
+    {
+      "id": "223e4567-e89b-12d3-a456-426614174001",
+      "front": "Promise",
+      "back": "An object representing a value that may not be available immediately",
+      "deck_id": "323e4567-e89b-12d3-a456-426614174002",
+      "created_at": "2023-03-02T14:30:00Z",
+      "updated_at": "2023-03-02T14:30:00Z"
     }
   ]
 }
@@ -629,7 +621,7 @@ Returns a list of all cards belonging to the authenticated user's decks.
 #### Get a Specific Card
 
 ```
-GET /api/cards/:id
+GET /api/cards/id/:id
 ```
 
 Returns a specific card by its ID. The card must belong to a deck owned by the authenticated user.
@@ -652,12 +644,12 @@ Returns a specific card by its ID. The card must belong to a deck owned by the a
 {
   "status": "success",
   "data": {
-    "id": "323e4567-e89b-12d3-a456-426614174002",
-    "front": "Hola",
-    "back": "Hello",
-    "deck_id": "123e4567-e89b-12d3-a456-426614174000",
-    "created_at": "2023-03-01T12:05:00Z",
-    "updated_at": "2023-03-01T12:05:00Z"
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "front": "¿Cómo estás?",
+    "back": "How are you?",
+    "deck_id": "223e4567-e89b-12d3-a456-426614174001",
+    "created_at": "2023-03-01T12:00:00Z",
+    "updated_at": "2023-03-01T12:00:00Z"
   }
 }
 ```
@@ -675,22 +667,23 @@ Creates a new card in a deck owned by the authenticated user.
 | Header | Value | Required |
 |--------|-------|----------|
 | Authorization | Bearer YOUR_JWT_TOKEN | Yes |
+| Content-Type | application/json | Yes |
 
 **Request Body:**
 
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
-| front | string | The front content of the card | Yes |
-| back | string | The back content of the card | Yes |
+| front | string | The front side of the card | Yes |
+| back | string | The back side of the card | Yes |
 | deck_id | string | The UUID of the deck this card belongs to | Yes |
 
 **Request Example:**
 
 ```json
 {
-  "front": "Bonjour",
-  "back": "Hello",
-  "deck_id": "523e4567-e89b-12d3-a456-426614174004"
+  "front": "¿Cómo estás?",
+  "back": "How are you?",
+  "deck_id": "223e4567-e89b-12d3-a456-426614174001"
 }
 ```
 
@@ -700,12 +693,12 @@ Creates a new card in a deck owned by the authenticated user.
 {
   "status": "success",
   "data": {
-    "id": "723e4567-e89b-12d3-a456-426614174006",
-    "front": "Bonjour",
-    "back": "Hello",
-    "deck_id": "523e4567-e89b-12d3-a456-426614174004",
-    "created_at": "2023-03-03T14:20:00Z",
-    "updated_at": "2023-03-03T14:20:00Z"
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "front": "¿Cómo estás?",
+    "back": "How are you?",
+    "deck_id": "223e4567-e89b-12d3-a456-426614174001",
+    "created_at": "2023-03-01T12:00:00Z",
+    "updated_at": "2023-03-01T12:00:00Z"
   }
 }
 ```
@@ -713,38 +706,38 @@ Creates a new card in a deck owned by the authenticated user.
 #### Update a Card
 
 ```
-PATCH /api/cards/:id
+PATCH /api/cards/id/:id
 ```
 
-Updates an existing card. The card must belong to a deck owned by the authenticated user.
+Updates a specific card. The card must belong to a deck owned by the authenticated user.
 
 **Headers:**
 
 | Header | Value | Required |
 |--------|-------|----------|
 | Authorization | Bearer YOUR_JWT_TOKEN | Yes |
+| Content-Type | application/json | Yes |
 
 **URL Parameters:**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| id | string | The UUID of the card to update |
+| id | string | The UUID of the card |
 
 **Request Body:**
 
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
-| front | string | The new front content of the card | No |
-| back | string | The new back content of the card | No |
-| deck_id | string | The UUID of the new deck this card belongs to (must be owned by the same user) | No |
+| front | string | The front side of the card | No |
+| back | string | The back side of the card | No |
+| deck_id | string | The UUID of the deck to move this card to | No |
 
 **Request Example:**
 
 ```json
 {
-  "front": "Bonjour!",
-  "back": "Hello (formal greeting)",
-  "deck_id": "523e4567-e89b-12d3-a456-426614174004"
+  "front": "¿Cómo te llamas?",
+  "back": "What is your name?"
 }
 ```
 
@@ -754,12 +747,12 @@ Updates an existing card. The card must belong to a deck owned by the authentica
 {
   "status": "success",
   "data": {
-    "id": "723e4567-e89b-12d3-a456-426614174006",
-    "front": "Bonjour!",
-    "back": "Hello (formal greeting)",
-    "deck_id": "523e4567-e89b-12d3-a456-426614174004",
-    "created_at": "2023-03-03T14:20:00Z",
-    "updated_at": "2023-03-03T15:10:00Z"
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "front": "¿Cómo te llamas?",
+    "back": "What is your name?",
+    "deck_id": "223e4567-e89b-12d3-a456-426614174001",
+    "created_at": "2023-03-01T12:00:00Z",
+    "updated_at": "2023-03-01T12:30:00Z"
   }
 }
 ```
@@ -767,10 +760,10 @@ Updates an existing card. The card must belong to a deck owned by the authentica
 #### Delete a Card
 
 ```
-DELETE /api/cards/:id
+DELETE /api/cards/id/:id
 ```
 
-Deletes a card. The card must belong to a deck owned by the authenticated user.
+Deletes a specific card. The card must belong to a deck owned by the authenticated user.
 
 **Headers:**
 
@@ -782,9 +775,9 @@ Deletes a card. The card must belong to a deck owned by the authenticated user.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| id | string | The UUID of the card to delete |
+| id | string | The UUID of the card |
 
-**Response:**
+**Response Example:**
 
 ```json
 {
