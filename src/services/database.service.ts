@@ -81,6 +81,35 @@ export class DatabaseService {
   }
 
   /**
+   * Get a single record by slug for the current user
+   */
+  async getBySlug(slug: string, select?: string) {
+    try {
+      const { data, error } = await this.client
+        .from(this.table)
+        .select(select || '*')
+        .eq('slug', slug)
+        .eq('user_id', this.userId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new ApiError(404, `${this.table} with slug "${slug}" not found or you don't have access to it`);
+        }
+        throw error;
+      }
+
+      return data;
+    } catch (error: unknown) {
+      if (error instanceof ApiError) throw error;
+      if (error instanceof Error) {
+        throw new ApiError(500, `Error fetching ${this.table}: ${error.message}`);
+      }
+      throw new ApiError(500, `Error fetching ${this.table}: Unknown error`);
+    }
+  }
+
+  /**
    * Create a new record for the current user
    */
   async create<T extends Record<string, any>>(data: T) {

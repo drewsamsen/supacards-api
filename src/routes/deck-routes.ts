@@ -13,8 +13,14 @@ router.get('/', deckController.getAll);
 // Get a specific deck by ID
 router.get('/id/:id', deckController.getById);
 
-// Get all cards in a deck
+// Get a specific deck by slug
+router.get('/slug/:slug', deckController.getBySlug);
+
+// Get all cards in a deck by ID
 router.get('/id/:id/cards', deckController.getCards);
+
+// Get all cards in a deck by slug
+router.get('/slug/:slug/cards', deckController.getCardsBySlug);
 
 // Create a new deck
 router.post('/', deckController.create);

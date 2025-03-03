@@ -21,6 +21,61 @@ export class DeckController extends BaseController {
   }
 
   /**
+   * Get a deck by slug
+   */
+  getBySlug = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const service = this.getService(req);
+      const { slug } = req.params;
+      
+      const data = await service.getBySlug(slug);
+      
+      return res.status(200).json({
+        status: 'success',
+        data
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get all cards in a deck by slug
+   */
+  getCardsBySlug = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    try {
+      const service = this.getService(req);
+      const { slug } = req.params;
+
+      // First check if the deck exists and belongs to the user
+      const deck = await service.getBySlug(slug, 'id, archived');
+      
+      if (!isDeckWithArchived(deck)) {
+        throw new ApiError(500, 'Invalid deck data returned from database');
+      }
+
+      // Optionally warn if the deck is archived
+      if (deck.archived) {
+        console.warn(`Fetching cards from archived deck with slug ${slug}`);
+      }
+
+      // Get all cards in the deck
+      const cardService = new DatabaseService(req.token, req.user!.id, TABLES.CARDS);
+      const cards = await cardService.getAll({ 
+        filters: { deck_id: deck.id }
+      });
+
+      return res.status(200).json({
+        status: 'success',
+        results: cards.length,
+        data: cards
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * Get all cards in a deck
    */
   getCards = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
