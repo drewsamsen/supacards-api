@@ -12,7 +12,122 @@ Replace `your-api-domain.com` with your actual API domain.
 
 ## Authentication
 
-Authentication is not currently implemented. It will be added in a future update.
+The API uses JWT (JSON Web Token) authentication. To access protected endpoints, you must include a valid JWT token in the Authorization header of your requests.
+
+### Authentication Header
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+### Authentication Endpoints
+
+#### Register a New User
+
+```
+POST /api/auth/register
+```
+
+Creates a new user account.
+
+**Request Body:**
+
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| email | string | User's email address | Yes |
+| password | string | User's password (min 6 characters) | Yes |
+| name | string | User's full name | Yes |
+
+**Request Example:**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "securepassword",
+  "name": "John Doe"
+}
+```
+
+**Response Example:**
+
+```json
+{
+  "status": "success",
+  "message": "User registered successfully",
+  "data": {
+    "id": "abc12345-e89b-12d3-a456-426614174000",
+    "email": "user@example.com",
+    "name": "John Doe"
+  }
+}
+```
+
+#### Login
+
+```
+POST /api/auth/login
+```
+
+Authenticates a user and returns a JWT token.
+
+**Request Body:**
+
+| Field | Type | Description | Required |
+|-------|------|-------------|----------|
+| email | string | User's email address | Yes |
+| password | string | User's password | Yes |
+
+**Request Example:**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "securepassword"
+}
+```
+
+**Response Example:**
+
+```json
+{
+  "status": "success",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": "abc12345-e89b-12d3-a456-426614174000",
+      "email": "user@example.com",
+      "name": "John Doe"
+    }
+  }
+}
+```
+
+#### Logout
+
+```
+POST /api/auth/logout
+```
+
+Invalidates the current JWT token.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
+
+**Response Example:**
+
+```json
+{
+  "status": "success",
+  "message": "Logged out successfully"
+}
+```
+
+### Protected Endpoints
+
+All endpoints except for the authentication endpoints (`/api/auth/*`) and the health check endpoint (`/health`) require authentication. Attempting to access these endpoints without a valid token will result in a 401 Unauthorized response.
 
 ## Response Format
 
@@ -43,6 +158,8 @@ All API responses follow a consistent format:
 - `201 Created`: Resource created successfully
 - `204 No Content`: Request succeeded, no content returned (used for deletions)
 - `400 Bad Request`: Invalid request parameters
+- `401 Unauthorized`: Authentication required or failed
+- `403 Forbidden`: Authenticated but not authorized to access the resource
 - `404 Not Found`: Resource not found
 - `500 Internal Server Error`: Server-side error
 
@@ -75,7 +192,13 @@ Returns the current status of the API.
 GET /api/decks
 ```
 
-Returns a list of all decks. By default, archived decks are not included.
+Returns a list of all decks belonging to the authenticated user. By default, archived decks are not included.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **Query Parameters:**
 
@@ -93,7 +216,7 @@ Returns a list of all decks. By default, archived decks are not included.
     {
       "id": "123e4567-e89b-12d3-a456-426614174000",
       "name": "Spanish Vocabulary",
-      "user_id": "abc12345-e89b-12d3-a456-426614174000",
+      "slug": "spanish-vocabulary",
       "archived": false,
       "created_at": "2023-03-01T12:00:00Z",
       "updated_at": "2023-03-01T12:00:00Z"
@@ -101,7 +224,7 @@ Returns a list of all decks. By default, archived decks are not included.
     {
       "id": "223e4567-e89b-12d3-a456-426614174001",
       "name": "JavaScript Concepts",
-      "user_id": "abc12345-e89b-12d3-a456-426614174000",
+      "slug": "javascript-concepts",
       "archived": false,
       "created_at": "2023-03-02T14:30:00Z",
       "updated_at": "2023-03-02T14:30:00Z"
@@ -113,10 +236,16 @@ Returns a list of all decks. By default, archived decks are not included.
 #### Get a Specific Deck
 
 ```
-GET /api/decks/:id
+GET /api/decks/id/:id
 ```
 
-Returns a specific deck by its ID.
+Returns a specific deck by its ID. The deck must belong to the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **URL Parameters:**
 
@@ -132,7 +261,43 @@ Returns a specific deck by its ID.
   "data": {
     "id": "123e4567-e89b-12d3-a456-426614174000",
     "name": "Spanish Vocabulary",
-    "user_id": "abc12345-e89b-12d3-a456-426614174000",
+    "slug": "spanish-vocabulary",
+    "archived": false,
+    "created_at": "2023-03-01T12:00:00Z",
+    "updated_at": "2023-03-01T12:00:00Z"
+  }
+}
+```
+
+#### Get a Specific Deck by Slug
+
+```
+GET /api/decks/slug/:slug
+```
+
+Returns a specific deck by its slug. The deck must belong to the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
+
+**URL Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| slug | string | The slug of the deck |
+
+**Response Example:**
+
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "123e4567-e89b-12d3-a456-426614174000",
+    "name": "Spanish Vocabulary",
+    "slug": "spanish-vocabulary",
     "archived": false,
     "created_at": "2023-03-01T12:00:00Z",
     "updated_at": "2023-03-01T12:00:00Z"
@@ -143,10 +308,16 @@ Returns a specific deck by its ID.
 #### Get All Cards in a Deck
 
 ```
-GET /api/decks/:id/cards
+GET /api/decks/id/:id/cards
 ```
 
-Returns all cards that belong to a specific deck.
+Returns all cards that belong to a specific deck. The deck must belong to the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **URL Parameters:**
 
@@ -166,7 +337,6 @@ Returns all cards that belong to a specific deck.
       "front": "Hola",
       "back": "Hello",
       "deck_id": "123e4567-e89b-12d3-a456-426614174000",
-      "user_id": "abc12345-e89b-12d3-a456-426614174000",
       "created_at": "2023-03-01T12:05:00Z",
       "updated_at": "2023-03-01T12:05:00Z"
     },
@@ -175,7 +345,53 @@ Returns all cards that belong to a specific deck.
       "front": "Adiós",
       "back": "Goodbye",
       "deck_id": "123e4567-e89b-12d3-a456-426614174000",
-      "user_id": "abc12345-e89b-12d3-a456-426614174000",
+      "created_at": "2023-03-01T12:10:00Z",
+      "updated_at": "2023-03-01T12:10:00Z"
+    }
+  ]
+}
+```
+
+#### Get All Cards in a Deck by Slug
+
+```
+GET /api/decks/slug/:slug/cards
+```
+
+Returns all cards that belong to a specific deck identified by its slug. The deck must belong to the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
+
+**URL Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| slug | string | The slug of the deck |
+
+**Response Example:**
+
+```json
+{
+  "status": "success",
+  "results": 2,
+  "data": [
+    {
+      "id": "323e4567-e89b-12d3-a456-426614174002",
+      "front": "Hola",
+      "back": "Hello",
+      "deck_id": "123e4567-e89b-12d3-a456-426614174000",
+      "created_at": "2023-03-01T12:05:00Z",
+      "updated_at": "2023-03-01T12:05:00Z"
+    },
+    {
+      "id": "423e4567-e89b-12d3-a456-426614174003",
+      "front": "Adiós",
+      "back": "Goodbye",
+      "deck_id": "123e4567-e89b-12d3-a456-426614174000",
       "created_at": "2023-03-01T12:10:00Z",
       "updated_at": "2023-03-01T12:10:00Z"
     }
@@ -189,21 +405,26 @@ Returns all cards that belong to a specific deck.
 POST /api/decks
 ```
 
-Creates a new deck.
+Creates a new deck for the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **Request Body:**
 
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | name | string | The name of the deck | Yes |
-| user_id | string | The UUID of the user who owns the deck | No |
+| slug | string | Custom slug for the deck (optional, will be auto-generated if not provided) | No |
 
 **Request Example:**
 
 ```json
 {
-  "name": "French Vocabulary",
-  "user_id": "abc12345-e89b-12d3-a456-426614174000"
+  "name": "French Vocabulary"
 }
 ```
 
@@ -215,7 +436,7 @@ Creates a new deck.
   "data": {
     "id": "523e4567-e89b-12d3-a456-426614174004",
     "name": "French Vocabulary",
-    "user_id": "abc12345-e89b-12d3-a456-426614174000",
+    "slug": "french-vocabulary",
     "archived": false,
     "created_at": "2023-03-03T09:15:00Z",
     "updated_at": "2023-03-03T09:15:00Z"
@@ -226,10 +447,16 @@ Creates a new deck.
 #### Update a Deck
 
 ```
-PATCH /api/decks/:id
+PATCH /api/decks/id/:id
 ```
 
-Updates an existing deck.
+Updates an existing deck. The deck must belong to the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **URL Parameters:**
 
@@ -242,6 +469,7 @@ Updates an existing deck.
 | Field | Type | Description | Required |
 |-------|------|-------------|----------|
 | name | string | The new name of the deck | No |
+| slug | string | The new slug for the deck | No |
 | archived | boolean | Whether the deck is archived | No |
 
 **Request Example:**
@@ -261,7 +489,7 @@ Updates an existing deck.
   "data": {
     "id": "523e4567-e89b-12d3-a456-426614174004",
     "name": "Advanced French Vocabulary",
-    "user_id": "abc12345-e89b-12d3-a456-426614174000",
+    "slug": "advanced-french-vocabulary",
     "archived": false,
     "created_at": "2023-03-03T09:15:00Z",
     "updated_at": "2023-03-03T10:20:00Z"
@@ -272,10 +500,16 @@ Updates an existing deck.
 #### Archive a Deck
 
 ```
-POST /api/decks/:id/archive
+POST /api/decks/id/:id/archive
 ```
 
-Archives a deck. This is a convenience endpoint that sets the `archived` flag to `true`.
+Archives a deck. This is a convenience endpoint that sets the `archived` flag to `true`. The deck must belong to the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **URL Parameters:**
 
@@ -292,7 +526,7 @@ Archives a deck. This is a convenience endpoint that sets the `archived` flag to
   "data": {
     "id": "523e4567-e89b-12d3-a456-426614174004",
     "name": "Advanced French Vocabulary",
-    "user_id": "abc12345-e89b-12d3-a456-426614174000",
+    "slug": "advanced-french-vocabulary",
     "archived": true,
     "created_at": "2023-03-03T09:15:00Z",
     "updated_at": "2023-03-03T11:30:00Z"
@@ -303,10 +537,16 @@ Archives a deck. This is a convenience endpoint that sets the `archived` flag to
 #### Delete a Deck
 
 ```
-DELETE /api/decks/:id
+DELETE /api/decks/id/:id
 ```
 
-Deletes a deck. If the deck contains cards, it will be archived instead of deleted.
+Deletes a deck. If the deck contains cards, it will be archived instead of deleted. The deck must belong to the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **URL Parameters:**
 
@@ -327,7 +567,7 @@ Status code: `204 No Content`
   "data": {
     "id": "523e4567-e89b-12d3-a456-426614174004",
     "name": "Advanced French Vocabulary",
-    "user_id": "abc12345-e89b-12d3-a456-426614174000",
+    "slug": "advanced-french-vocabulary",
     "archived": true,
     "created_at": "2023-03-03T09:15:00Z",
     "updated_at": "2023-03-03T12:45:00Z"
@@ -343,7 +583,13 @@ Status code: `204 No Content`
 GET /api/cards
 ```
 
-Returns a list of all cards.
+Returns a list of all cards belonging to the authenticated user's decks.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **Response Example:**
 
@@ -357,7 +603,6 @@ Returns a list of all cards.
       "front": "Hola",
       "back": "Hello",
       "deck_id": "123e4567-e89b-12d3-a456-426614174000",
-      "user_id": "abc12345-e89b-12d3-a456-426614174000",
       "created_at": "2023-03-01T12:05:00Z",
       "updated_at": "2023-03-01T12:05:00Z"
     },
@@ -366,7 +611,6 @@ Returns a list of all cards.
       "front": "Adiós",
       "back": "Goodbye",
       "deck_id": "123e4567-e89b-12d3-a456-426614174000",
-      "user_id": "abc12345-e89b-12d3-a456-426614174000",
       "created_at": "2023-03-01T12:10:00Z",
       "updated_at": "2023-03-01T12:10:00Z"
     },
@@ -375,7 +619,6 @@ Returns a list of all cards.
       "front": "Callback function",
       "back": "A function passed as an argument to another function",
       "deck_id": "223e4567-e89b-12d3-a456-426614174001",
-      "user_id": "abc12345-e89b-12d3-a456-426614174000",
       "created_at": "2023-03-02T14:35:00Z",
       "updated_at": "2023-03-02T14:35:00Z"
     }
@@ -389,7 +632,13 @@ Returns a list of all cards.
 GET /api/cards/:id
 ```
 
-Returns a specific card by its ID.
+Returns a specific card by its ID. The card must belong to a deck owned by the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **URL Parameters:**
 
@@ -407,7 +656,6 @@ Returns a specific card by its ID.
     "front": "Hola",
     "back": "Hello",
     "deck_id": "123e4567-e89b-12d3-a456-426614174000",
-    "user_id": "abc12345-e89b-12d3-a456-426614174000",
     "created_at": "2023-03-01T12:05:00Z",
     "updated_at": "2023-03-01T12:05:00Z"
   }
@@ -420,7 +668,13 @@ Returns a specific card by its ID.
 POST /api/cards
 ```
 
-Creates a new card.
+Creates a new card in a deck owned by the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **Request Body:**
 
@@ -429,7 +683,6 @@ Creates a new card.
 | front | string | The front content of the card | Yes |
 | back | string | The back content of the card | Yes |
 | deck_id | string | The UUID of the deck this card belongs to | Yes |
-| user_id | string | The UUID of the user who owns the card | No |
 
 **Request Example:**
 
@@ -437,8 +690,7 @@ Creates a new card.
 {
   "front": "Bonjour",
   "back": "Hello",
-  "deck_id": "523e4567-e89b-12d3-a456-426614174004",
-  "user_id": "abc12345-e89b-12d3-a456-426614174000"
+  "deck_id": "523e4567-e89b-12d3-a456-426614174004"
 }
 ```
 
@@ -452,7 +704,6 @@ Creates a new card.
     "front": "Bonjour",
     "back": "Hello",
     "deck_id": "523e4567-e89b-12d3-a456-426614174004",
-    "user_id": "abc12345-e89b-12d3-a456-426614174000",
     "created_at": "2023-03-03T14:20:00Z",
     "updated_at": "2023-03-03T14:20:00Z"
   }
@@ -465,7 +716,13 @@ Creates a new card.
 PATCH /api/cards/:id
 ```
 
-Updates an existing card.
+Updates an existing card. The card must belong to a deck owned by the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **URL Parameters:**
 
@@ -479,7 +736,7 @@ Updates an existing card.
 |-------|------|-------------|----------|
 | front | string | The new front content of the card | No |
 | back | string | The new back content of the card | No |
-| deck_id | string | The UUID of the new deck this card belongs to | No |
+| deck_id | string | The UUID of the new deck this card belongs to (must be owned by the same user) | No |
 
 **Request Example:**
 
@@ -501,7 +758,6 @@ Updates an existing card.
     "front": "Bonjour!",
     "back": "Hello (formal greeting)",
     "deck_id": "523e4567-e89b-12d3-a456-426614174004",
-    "user_id": "abc12345-e89b-12d3-a456-426614174000",
     "created_at": "2023-03-03T14:20:00Z",
     "updated_at": "2023-03-03T15:10:00Z"
   }
@@ -514,7 +770,13 @@ Updates an existing card.
 DELETE /api/cards/:id
 ```
 
-Deletes a card.
+Deletes a card. The card must belong to a deck owned by the authenticated user.
+
+**Headers:**
+
+| Header | Value | Required |
+|--------|-------|----------|
+| Authorization | Bearer YOUR_JWT_TOKEN | Yes |
 
 **URL Parameters:**
 
@@ -524,18 +786,41 @@ Deletes a card.
 
 **Response:**
 
-Status code: `204 No Content`
+```json
+{
+  "status": "success",
+  "message": "Card deleted successfully"
+}
+```
 
 ## Error Handling
 
 ### Common Error Responses
+
+#### Authentication Error
+
+```json
+{
+  "status": "error",
+  "message": "Authentication required. Please log in."
+}
+```
+
+#### Authorization Error
+
+```json
+{
+  "status": "error",
+  "message": "You don't have permission to access this resource"
+}
+```
 
 #### Resource Not Found
 
 ```json
 {
   "status": "error",
-  "message": "Card with ID 999e4567-e89b-12d3-a456-426614174999 not found"
+  "message": "Card with ID 999e4567-e89b-12d3-a456-426614174999 not found or you don't have access to it"
 }
 ```
 
