@@ -1,7 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { ApiError } from '../middleware/error-handler';
 import { AuthenticatedRequest } from '../types/auth-types';
-import { getSupabaseClient } from '../utils/supabase-client';
+import { AuthRepository } from '../repositories/auth.repository';
 
 /**
  * Middleware to verify JWT token in Authorization header
@@ -20,18 +20,14 @@ export const verifyToken = async (req: AuthenticatedRequest, res: Response, next
     // Extract the token
     const token = authHeader.split(' ')[1];
     
-    // Create a new Supabase client with the token
-    const supabase = getSupabaseClient(token);
+    // Create a new auth repository with the token
+    const authRepository = new AuthRepository(token);
     
     // Get user from token
-    const { data, error } = await supabase.auth.getUser();
-    
-    if (error || !data.user) {
-      throw new ApiError(401, 'Invalid or expired token');
-    }
+    const user = await authRepository.getCurrentUser();
     
     // Attach the user and token to the request object
-    req.user = data.user;
+    req.user = user;
     req.token = token;
     
     // If we reach here, the token is valid and user is attached to request

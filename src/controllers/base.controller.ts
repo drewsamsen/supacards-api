@@ -1,10 +1,10 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../types/auth-types';
-import { DatabaseService } from '../services/database.service';
 import { ApiError } from '../middleware/error-handler';
 import { ZodSchema } from 'zod';
+import { IBaseRepository, QueryOptions } from '../repositories/base.repository';
 
-export class BaseController {
+export abstract class BaseController<T> {
   protected table: string;
   protected createSchema?: ZodSchema;
   protected updateSchema?: ZodSchema;
@@ -15,22 +15,51 @@ export class BaseController {
     this.updateSchema = updateSchema;
   }
 
-  protected getService(req: AuthenticatedRequest): DatabaseService {
-    if (!req.user?.id) {
-      throw new ApiError(401, 'User ID not found in request');
-    }
-    return new DatabaseService(req.token, req.user.id, this.table);
-  }
+  protected abstract getRepository(req: AuthenticatedRequest): IBaseRepository<T>;
 
   /**
    * Get all records
    */
   getAll = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const service = this.getService(req);
-      const includeArchived = req.query.includeArchived === 'true';
+      const repository = this.getRepository(req);
       
-      const data = await service.getAll({ includeArchived });
+      // Build query options from request query parameters
+      const options: QueryOptions = {};
+      
+      // Handle pagination
+      if (req.query.page && req.query.limit) {
+        options.page = parseInt(req.query.page as string, 10);
+        options.limit = parseInt(req.query.limit as string, 10);
+      }
+      
+      // Handle sorting
+      if (req.query.sort) {
+        options.sort = req.query.sort as string;
+      }
+      
+      // Handle field selection
+      if (req.query.fields) {
+        options.select = (req.query.fields as string).replace(/,/g, ', ');
+      }
+      
+      // Handle archived filter
+      options.includeArchived = req.query.includeArchived === 'true';
+      
+      // Handle additional filters
+      const filters: Record<string, any> = {};
+      Object.keys(req.query).forEach(key => {
+        // Skip special query parameters
+        if (!['page', 'limit', 'sort', 'fields', 'includeArchived'].includes(key)) {
+          filters[key] = req.query[key];
+        }
+      });
+      
+      if (Object.keys(filters).length > 0) {
+        options.filters = filters;
+      }
+      
+      const data = await repository.getAll(options);
       
       return res.status(200).json({
         status: 'success',
@@ -47,10 +76,14 @@ export class BaseController {
    */
   getById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const service = this.getService(req);
+      const repository = this.getRepository(req);
       const { id } = req.params;
       
-      const data = await service.getById(id);
+      const data = await repository.getById(id);
+      
+      if (!data) {
+        throw new ApiError(404, `${this.table} with ID ${id} not found`);
+      }
       
       return res.status(200).json({
         status: 'success',
@@ -66,7 +99,7 @@ export class BaseController {
    */
   create = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const service = this.getService(req);
+      const repository = this.getRepository(req);
       
       if (this.createSchema) {
         const validationResult = this.createSchema.safeParse(req.body);
@@ -76,7 +109,7 @@ export class BaseController {
         req.body = validationResult.data;
       }
       
-      const data = await service.create(req.body);
+      const data = await repository.create(req.body);
       
       return res.status(201).json({
         status: 'success',
@@ -92,7 +125,7 @@ export class BaseController {
    */
   update = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const service = this.getService(req);
+      const repository = this.getRepository(req);
       const { id } = req.params;
       
       if (this.updateSchema) {
@@ -103,30 +136,14 @@ export class BaseController {
         req.body = validationResult.data;
       }
       
-      const data = await service.update(id, req.body);
+      const data = await repository.update(id, req.body);
+      
+      if (!data) {
+        throw new ApiError(404, `${this.table} with ID ${id} not found`);
+      }
       
       return res.status(200).json({
         status: 'success',
-        data
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  /**
-   * Archive a record
-   */
-  archive = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-      const service = this.getService(req);
-      const { id } = req.params;
-      
-      const data = await service.archive(id);
-      
-      return res.status(200).json({
-        status: 'success',
-        message: `${this.table} archived successfully`,
         data
       });
     } catch (error) {
@@ -139,10 +156,14 @@ export class BaseController {
    */
   delete = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
-      const service = this.getService(req);
+      const repository = this.getRepository(req);
       const { id } = req.params;
       
-      await service.delete(id);
+      const success = await repository.delete(id);
+      
+      if (!success) {
+        throw new ApiError(404, `${this.table} with ID ${id} not found`);
+      }
       
       return res.status(200).json({
         status: 'success',

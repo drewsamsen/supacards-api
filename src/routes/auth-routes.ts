@@ -1,7 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../middleware/auth-middleware';
-import { getCurrentUser } from '../utils/auth-utils';
-import { register, login, logout } from '../controllers/auth-controller';
+import { register, login, logout, getCurrentUser } from '../controllers/auth-controller';
 import { AuthenticatedRequest } from '../types/auth-types';
 
 const router = Router();
@@ -24,20 +23,7 @@ router.post('/login', login);
 router.post('/logout', verifyToken, logout);
 
 // Get current user - requires authentication
-router.get('/me', verifyToken, (req: AuthenticatedRequest, res: Response) => {
-  // User is already attached to the request by the verifyToken middleware
-  const user = req.user;
-  
-  res.status(200).json({
-    status: 'success',
-    data: {
-      id: user?.id,
-      email: user?.email,
-      created_at: user?.created_at,
-      user_metadata: user?.user_metadata
-    }
-  });
-});
+router.get('/me', verifyToken, getCurrentUser);
 
 // Test route - requires authentication
 router.get('/protected', verifyToken, (req: AuthenticatedRequest, res: Response) => {

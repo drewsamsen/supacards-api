@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../utils/supabase-client';
-import { ApiError } from '../utils/error-utils';
+import { ApiError } from '../middleware/error-handler';
 import { z } from 'zod';
 import { AuthenticatedRequest } from '../types/auth-types';
+import { AuthRepository } from '../repositories/auth.repository';
 
 // Validation schema for registration
 const registerSchema = z.object({
@@ -32,20 +31,11 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     
     const { email, password, name } = validationResult.data;
     
-    // Register user with Supabase Auth
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name
-        }
-      }
-    });
+    // Create auth repository
+    const authRepository = new AuthRepository();
     
-    if (error) {
-      throw new ApiError(400, `Registration failed: ${error.message}`);
-    }
+    // Register user
+    const { user, session } = await authRepository.register({ email, password });
     
     // Return success response
     return res.status(201).json({
@@ -53,9 +43,9 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       message: 'Registration successful. Please check your email for verification.',
       data: {
         user: {
-          id: data.user?.id,
-          email: data.user?.email,
-          created_at: data.user?.created_at
+          id: user?.id,
+          email: user?.email,
+          created_at: user?.created_at
         }
       }
     });
@@ -78,15 +68,11 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     
     const { email, password } = validationResult.data;
     
-    // Login user with Supabase Auth
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    // Create auth repository
+    const authRepository = new AuthRepository();
     
-    if (error) {
-      throw new ApiError(401, `Login failed: ${error.message}`);
-    }
+    // Login user
+    const { user, session, access_token, refresh_token } = await authRepository.login({ email, password });
     
     // Return success response with session and user data
     return res.status(200).json({
@@ -94,14 +80,14 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       message: 'Login successful',
       data: {
         session: {
-          access_token: data.session?.access_token,
-          refresh_token: data.session?.refresh_token,
-          expires_at: data.session?.expires_at
+          access_token,
+          refresh_token,
+          expires_at: session?.expires_at
         },
         user: {
-          id: data.user?.id,
-          email: data.user?.email,
-          created_at: data.user?.created_at
+          id: user?.id,
+          email: user?.email,
+          created_at: user?.created_at
         }
       }
     });
@@ -115,28 +101,40 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
  */
 export const logout = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
-    // Token is already verified and attached to the request by the verifyToken middleware
-    const token = req.token;
+    // Create auth repository with the user's token
+    const authRepository = new AuthRepository(req.token);
     
-    if (token) {
-      // Set the auth header for the Supabase client
-      supabase.auth.setSession({
-        access_token: token,
-        refresh_token: ''
-      });
-    }
-    
-    // Sign out from Supabase Auth
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-      throw new ApiError(500, `Logout failed: ${error.message}`);
-    }
+    // Logout user
+    await authRepository.logout();
     
     // Return success response
     return res.status(200).json({
       status: 'success',
       message: 'Logout successful'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get current user profile
+ */
+export const getCurrentUser = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    // User is already attached to the request by the verifyToken middleware
+    const user = req.user;
+    
+    // Return success response
+    return res.status(200).json({
+      status: 'success',
+      data: {
+        user: {
+          id: user?.id,
+          email: user?.email,
+          created_at: user?.created_at
+        }
+      }
     });
   } catch (error) {
     next(error);
